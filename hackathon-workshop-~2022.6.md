@@ -755,7 +755,7 @@ We will introduce marks at this point as well.  Marks serve the same role as fil
 **/app/charlie.hoon**
 
 ```hoon
-/-  charlie
+/-  *charlie
 /+  default-agent, dbug
 |%
 +$  versioned-state
@@ -770,93 +770,71 @@ We will introduce marks at this point as well.  Marks serve the same role as fil
 =|  state-0
 =*  state  -
 ^-  agent:gall
-=<
 |_  =bowl:gall
-+*  this      .
-    default   ~(. (default-agent this %|) bowl)
-    main      ~(. +> bowl)
-++  on-init
++*  this     .
+    default  ~(. (default-agent this %|) bowl)
+++  on-init   on-init:default
+++  on-save   !>(state)
+++  on-load
+  |=  old=vase
   ^-  (quip card _this)
-  ~&  >  '%charlie initialized successfully'
-  =.  state  [%0 *(list @)]
-  `this
-++  on-save   on-save:default
-++  on-load   on-load:default
+  `this(state !<(state-0 old))
 ++  on-poke
   |=  [=mark =vase]
   ^-  (quip card _this)
-  ?+    mark  (on-poke:default mark vase)
-      %charlie-action
-    ~&  >  %charlie-action
-    =^  cards  state
-    (handle-action:main !<(action:charlie vase))
-    [cards this]
+  ?>  ?=(%charlie-action mark)
+  =/  act  !<(action vase)
+  ?-    -.act
+      %push
+    ?:  =(our.bowl target.act)
+      `this(values [value.act values])
+    ?>  =(our.bowl src.bowl)
+    :_  this
+    [%pass /pokes %agent [target.act %charlie] %poke mark vase]~
+  ::
+      %pop
+    ?:  =(our.bowl target.act)
+      `this(values ?~(values ~ t.values))
+    ?>  =(our.bowl src.bowl)
+    :_  this
+    [%pass /pokes %agent [target.act %charlie] %poke mark vase]~
+  ==
+::
+++  on-peek
+  |=  =path
+  ^-  (unit (unit cage))
+  ?+  path  (on-peek:default path)
+    [%x %values ~]  ``noun+!>(values)
   ==
 ++  on-arvo   on-arvo:default
 ++  on-watch  on-watch:default
 ++  on-leave  on-leave:default
-++  on-peek
-  |=  =path
-  ^-  (unit (unit cage))
-  ?+    path  (on-peek:default path)
-      [%x %values ~]
-    ``noun+!>(values)
-  ==
 ++  on-agent  on-agent:default
 ++  on-fail   on-fail:default
---
-|_  =bowl:gall
-++  handle-action
-  |=  =action:charlie
-  ^-  (quip card _state)
-  ?-    -.action
-    ::
-      %push-remote
-    :_  state
-    ~[[%pass /poke-wire %agent [target.action %charlie] %poke %charlie-action !>([%push-local value.action])]]
-    ::
-      %push-local
-    =.  values.state  (weld values.state ~[value.action])
-    ~&  >>  values.state
-    :_  state
-    ~[[%give %fact ~[/values] [%atom !>(values.state)]]]
-    ::
-      %pop-remote
-    :_  state
-    ~[[%pass /poke-wire %agent [target.action %charlie] %poke %charlie-action !>(~[%pop-local])]]
-    ::
-      %pop-local
-    =.  values.state  (snip values.state)
-    ~&  >>  values.state
-    :_  state
-    ~[[%give %fact ~[/values] [%atom !>(values.state)]]]
-  ==
 --
 ```
 
 **`/sur/charlie.hoon`**
 
-```
+```hoon
 |%
 +$  action
-  $%  [%push-remote target=@p value=@]
-      [%push-local value=@]
-      [%pop-remote target=@p]
-      [%pop-local ~]
+  $%  [%push target=@p value=@]
+      [%pop target=@p]
   ==
 --
 ```
 
 **`/mar/charlie/action.hoon`**
 
-```
-/-  charlie
-|_  =action:charlie
-++  grab
-  |%
-  ++  noun  action:charlie
-  --
+```hoon
+/-  *charlie
+|_  act=action
 ++  grow
+  |%
+  ++  noun  act
+  --
+++  grab
   |%
   ++  noun  action
   --
@@ -889,10 +867,10 @@ Once that's launching correctly, two fakeships on the same local machine running
 
 ```hoon
 ::  Pokes pass through the action mark.
-:charlie &charlie-action [%push-remote ~zod 100]
-:charlie &charlie-action [%push-local 100]
-:charlie &charlie-action [%pop-remote ~zod]
-:charlie &charlie-action [%pop-local ~]
+:charlie &charlie-action [%push ~zod 100]
+:charlie &charlie-action [%push ~nec 50]
+:charlie &charlie-action [%pop ~zod]
+:charlie &charlie-action [%pop ~nec]
 
 ::  Peeks need the return value specified.
 .^((list @) %gx /=charlie=/values/noun)
@@ -913,141 +891,97 @@ Agents talk to each other by means of `card`s, which are messages requesting or 
 **`/app/delta.hoon`**
 
 ```hoon
-  /-  delta
-  /+  default-agent, dbug
-  |%
-  +$  versioned-state
-    $%  state-0
-    ==
-  +$  state-0
-    $:  [%0 values=(list @)]
-    ==
-  +$  card  card:agent:gall
-  --
-  %-  agent:dbug
-  =|  state-0
-  =*  state  -
-  ^-  agent:gall
-  =<
-  |_  =bowl:gall
-  +*  this      .
-      default   ~(. (default-agent this %|) bowl)
-      main      ~(. +> bowl)
-  ++  on-init
-    ^-  (quip card _this)
-    ~&  >  '%delta initialized successfully'
-    =.  state  [%0 *(list @)]
-    `this
-  ++  on-save   on-save:default
-  ++  on-load   on-load:default
-  ++  on-poke
-    |=  [=mark =vase]
-    ^-  (quip card _this)
-    ?+    mark  (on-poke:default mark vase)
-        %delta-action
-      ~&  >  %delta-action
-      =^  cards  state
-      (handle-action:main !<(action:delta vase))
-      [cards this]
-        %delta-update
-      ~&  >  %delta-update
-      =^  cards  state
-      (handle-update:main !<(update:delta vase))
-      [cards this]
-    ==
-  ++  on-arvo   on-arvo:default
-  ++  on-watch
-    |=  =path
-    ^-  (quip card _this)
-    ?+    path  (on-watch:default path)
-        [%values ~]
-      :_  this
-      ~[[%give %fact ~[/values] %delta-update !>(`update:delta`initial+values)]]
-    ==
-  ++  on-leave  on-leave:default
-  ++  on-peek
-    |=  =path
-    ^-  (unit (unit cage))
-    ?+    path  (on-peek:default path)
-        [%x %values ~]
-      ``noun+!>(values)
-    ==
-  ++  on-agent  on-agent:default
-  ++  on-fail   on-fail:default
-  --
-  |_  =bowl:gall
-  ++  handle-action
-    |=  =action:delta
-    ^-  (quip card _state)
-    ?-    -.action
-      ::
-        %push-remote
-      :_  state
-      ~[[%pass /poke-wire %agent [target.action %delta] %poke %delta-action !>([%push-local value.action])]]
-      ::
-        %push-local
-      =.  values.state  (weld values.state ~[value.action])
-      ~&  >  values.state
-      ~&  >  sup.bowl
-      :_  state
-      :~  [%give %fact ~[/values] [%delta-update !>(`update:delta`change+values)]]
-      ==
-      ::
-        %pop-remote
-      :_  state
-      ~[[%pass /poke-wire %agent [target.action %delta] %poke %delta-action !>(~[%pop-local])]]
-      ::
-        %pop-local
-      =.  values.state  (snip values.state)
-      ~&  >  values.state
-      :_  state
-      :~  [%give %fact ~[/values] [%delta-update !>(`update:delta`change+values)]]
-      ==
-    ==
-  ++  handle-update
-    |=  =update:delta
-    ^-  (quip card _state)
-    ?-    -.update
-        %change
-      :_  state
-      :~  [%give %fact ~[/values] %delta-update !>(`update:delta`change+values)]
-      ==
-      ::
-        %initial
-      :_  state
-      :~  [%give %fact ~[/values] %delta-update !>(`update:delta`initial+values)]
-      ==
-    ==
-  --
+/-  *delta
+/+  default-agent, dbug
+|%
++$  versioned-state
+  $%  state-0
+  ==
++$  state-0
+  $:  [%0 values=(list @)]
+  ==
++$  card  card:agent:gall
+--
+%-  agent:dbug
+=|  state-0
+=*  state  -
+^-  agent:gall
+|_  =bowl:gall
++*  this     .
+    default  ~(. (default-agent this %|) bowl)
+++  on-init   on-init:default
+++  on-save   !>(state)
+++  on-load
+  |=  old=vase
+  ^-  (quip card _this)
+  `this(state !<(state-0 old))
+++  on-poke
+  |=  [=mark =vase]
+  ^-  (quip card _this)
+  ?>  ?=(%delta-action mark)
+  =/  act  !<(action vase)
+  ?-    -.act
+      %push
+    ?:  =(our.bowl target.act)
+      :_  this(values [value.act values])
+      [%give %fact ~[/values] %delta-update !>(`update`act)]~
+    ?>  =(our.bowl src.bowl)
+    :_  this
+    [%pass /pokes %agent [target.act %delta] %poke mark vase]~
+  ::
+      %pop
+    ?:  =(our.bowl target.act)
+      :_  this(values ?~(values ~ t.values))
+      [%give %fact ~[/values] %delta-update !>(`update`act)]~
+    ?>  =(our.bowl src.bowl)
+    :_  this
+    [%pass /pokes %agent [target.act %delta] %poke mark vase]~
+  ==
+::
+++  on-peek
+  |=  =path
+  ^-  (unit (unit cage))
+  ?+  path  (on-peek:default path)
+    [%x %values ~]  ``noun+!>(values)
+  ==
+++  on-watch
+  |=  =path
+  ^-  (quip card _this)
+  ?>  ?=([%values ~] path)
+  :_  this
+  [%give %fact ~ %delta-update !>(`update`[%init values])]~
+++  on-arvo   on-arvo:default
+++  on-leave  on-leave:default
+++  on-agent  on-agent:default
+++  on-fail   on-fail:default
+--
 ```
 
 **`/sur/delta.hoon`**
 
-```
+```hoon
 |%
 +$  action
-  $%  [%push-remote target=@p value=@]
-      [%push-local value=@]
-      [%pop-remote target=@p]
-      [%pop-local ~]
+  $%  [%push target=@p value=@]
+      [%pop target=@p]
   ==
 +$  update
-  $%  [%initial (list @)]
-      [%change (list @)]
+  $%  [%init values=(list @)]
+      action
   ==
 --
 ```
 
 **`/mar/delta/action.hoon`**
 
-```
-/-  delta
-|_  =action:delta
-++  grab
-  |%
-  ++  noun  action:delta
-  --
+```hoon
+/-  *delta
+|_  act=action
 ++  grow
+  |%
+  ++  noun  act
+  --
+++  grab
   |%
   ++  noun  action
   --
@@ -1058,13 +992,13 @@ Agents talk to each other by means of `card`s, which are messages requesting or 
 **`/mar/delta/update.hoon`**
 
 ```hoon
-/-  delta
-|_  =update:delta
-++  grab
-  |%
-  ++  noun  update:delta
-  --
+/-  *delta
+|_  upd=update
 ++  grow
+  |%
+  ++  noun  upd
+  --
+++  grab
   |%
   ++  noun  update
   --
@@ -1075,78 +1009,59 @@ Agents talk to each other by means of `card`s, which are messages requesting or 
 **`/app/delta-follower.hoon`**
 
 ```hoon
-/-  delta
+/-  *delta
 /+  default-agent, dbug
 |%
-+$  versioned-state
-  $%  state-0
-  ==
-+$  state-0  [%0 ~]
 +$  card  card:agent:gall
 --
 %-  agent:dbug
-=|  state-0
-=*  state  -
 ^-  agent:gall
 |_  =bowl:gall
-+*  this      .
-    default   ~(. (default-agent this %|) bowl)
-++  on-init
-  ^-  (quip card _this)
-  ~&  >>  '%delta-follower initialized successfully'
-  `this
-++  on-save   on-save:default
-++  on-load   on-load:default
++*  this     .
+    default  ~(. (default-agent this %|) bowl)
 ++  on-poke
   |=  [=mark =vase]
   ^-  (quip card _this)
-  ?+    mark  (on-poke:default mark vase)
-      %noun
-    =/  action  !<(?([%subscribe @p] [%unsubscribe @p]) vase)
-    ?-    -.action
-        %subscribe
-      :_  this
-      :~  [%pass /values-wire %agent [+.action %delta] %watch /values]
-      ==
-        %unsubscribe
-      :_  this
-      :~  [%pass /values-wire %agent [+.action %delta] %leave ~]
-      ==
-    ==
+  ?>  ?=(%noun mark)
+  =/  action  !<(?([%sub =@p] [%unsub =@p]) vase)
+  ?-    -.action
+      %sub
+    :_  this
+    [%pass /values-wire %agent [p.action %delta] %watch /values]~
+  ::
+      %unsub
+    :_  this
+    [%pass /values-wire %agent [p.action %delta] %leave ~]~
   ==
-++  on-arvo   on-arvo:default                          
-++  on-watch  on-watch:default
-++  on-leave  on-leave:default
-++  on-peek   on-peek:default
+::
 ++  on-agent
   |=  [=wire =sign:agent:gall]
   ^-  (quip card _this)
-  ~&  >>  wire
-  ~&  >>  sign
-  ?+    wire  (on-agent:default wire sign)
-      [%values-wire ~]
-    ?+    -.sign  (on-agent:default wire sign)
-        %watch-ack
-      ?~  p.sign
-        ((slog '%delta-follower: subscribe succeeded!' ~) `this)
-      ((slog '%delta-follower: subscribe failed!' ~) `this)
-    ::
-        %kick
-      %-  (slog '%delta-follower: Got kick, resubscribing...' ~)
-      :_  this
-      :~  [%pass /values-wire %agent [src.bowl %delta] %watch /values]
-      ==
-    ::
-        %fact
-      ~&  >>  fact+p.cage.sign
-      ?+    p.cage.sign  (on-agent:default wire sign)
-          %delta-update
-        ~&  >>  !<(update:delta q.cage.sign)
-        `this
-      ==
-    ==
+  ?>  ?=([%values-wire ~] wire)
+  ?+    -.sign  (on-agent:default wire sign)
+      %watch-ack
+    ?~  p.sign
+      ((slog '%delta-follower: subscribe succeeded!' ~) `this)
+    ((slog '%delta-follower: subscribe failed!' ~) `this)
+  ::
+      %kick
+    %-  (slog '%delta-follower: Got kick, resubscribing...' ~)
+    :_  this
+    [%pass /values-wire %agent [src.bowl %delta] %watch /values]~
+  ::
+    %fact
+    ~&  >>  fact+p.cage.sign
+    ?>  ?=(%delta-update p.cage.sign)
+    ~&  >>  !<(update q.cage.sign)
+    `this
   ==
-::
+++  on-watch  on-watch:default
+++  on-peek   on-peek:default
+++  on-init   on-init:default
+++  on-save   on-save:default
+++  on-load   on-load:default
+++  on-arvo   on-arvo:default
+++  on-leave  on-leave:default
 ++  on-fail   on-fail:default
 --
 ```
@@ -1175,25 +1090,18 @@ and save the above file to `delta/app/delta.hoon`.
 It works like this.  You can interact with `%delta` the same way as `%charlie`, but you can also subscribe to updates in `%delta` with `%delta-follower`.
 
 ```hoon
-> :delta &delta-action [%push-local 30.000]
+> :delta &delta-action [%push ~zod 30.000]
 
-> :delta-follower [%subscribe ~zod]
->>  /values-wire
->>  [%fact cage=[p=%delta-update q=[#t/?([%change it(@)] [%initial it(@)]) q=[30.506.403.037.277.801 30.000 0]]]]
->>  [%fact %delta-update]
->>  [%initial ~[30.000]]
-
-> :delta &delta-action [%push-local 30.000]
+> :delta-follower [%sub ~zod]
 >=
->   %delta-action
->   ~[30.000 30.000]
->   { [p=~[/gall/use/delta-follower/0w2.z7yJs/out/~zod/delta/values-wire /dill //term/1] q=[p=~zod q=/values]]
- [p=~[/gall/use/delta-follower/0w2.z7yJs/out/~zod/delta/values /dill //term/1] q=[p=~zod q=/updates]]                                                        
-}
->>  /values-wire
->>  [%fact cage=[p=%delta-update q=[#t/?([%change it(@)] [%initial it(@)]) q=[111.494.907.914.339 30.000 30.000 0]]]]
+%delta-follower: subscribe succeeded!
 >>  [%fact %delta-update]
->>  [%change ~[30.000 30.000]]
+>>  [%init values=~[30.000]]
+
+> :delta &delta-action [%push ~zod 10.000]
+>=
+>>  [%fact %delta-update]
+>>  [%push target=~zod value=10.000]
 ```
 
 The main thing to note is the use of `%fact` cards.  These are messages sent to all subscribers by the originator.  A subscriber subscribes to a `path` (which depends on the thing it is subscribing to) with a `wire` (which is a unique ID local to the subscriber).
@@ -1213,204 +1121,63 @@ We will implement a version of our stack app that runs on one ship and doesn't t
 
 ### Talking to a Ship
 
-We don't need to change much in our current Gall agent, but we do need to register endpoints and validate received input using a cookie.
-
 Eyre is the HTTP server vane of Arvo.  It will receive and handle `GET` and `PUT` messages.  The web client will produce a unique channel ID and connect that channel to the agent to monitor subscriptions and acks.
-
-A cookie may be requested using the ship's web login code (by default for ~zod, `lidlut-tabwed-pillex-ridrup`).
 
 ### JSON Manipulation
 
-
 The Urbit Visor Chrome extension produced by dcSpark bridges Web 2.0 applications to web3 on Urbit.  A UV integration would be an excellent hackathon-size project.
 
-### Stack Agent `%echo`
+### Updates to `%delta`
 
-Let's take `%delta` from our back-end work and update it to have a small front-end which displays its state and allows the front-end to push and pop values.  This is `%echo`:
+Let's take `%delta` from our back-end work and update it to have a small front-end which displays its state and allows the front-end to push and pop values. We can leave the `/sur` file and agent the same, and just add JSON encoding & decoding functions to our mark files:
 
-**`/app/echo.hoon`**
+**`/mar/delta/action.hoon`**
 
 ```hoon
-  /-  echo
-  /+  default-agent, dbug
+/-  *delta
+|_  act=action
+++  grow
   |%
-  +$  versioned-state
-    $%  state-0
-    ==
-  +$  state-0
-    $:  [%0 values=(list @)]
-    ==
-  +$  card  card:agent:gall
+  ++  noun  act
   --
-  %-  agent:dbug
-  =|  state-0
-  =*  state  -
-  ^-  agent:gall
-  =<
-  |_  =bowl:gall
-  +*  this      .
-      default   ~(. (default-agent this %|) bowl)
-      main      ~(. +> bowl)
-  ++  on-init
-    ^-  (quip card _this)
-    ~&  >  '%echo initialized successfully'
-    =.  state  [%0 *(list @)]
-    `this
-  ++  on-save   on-save:default
-  ++  on-load   on-load:default
-  ++  on-poke
-    |=  [=mark =vase]
-    ^-  (quip card _this)
-    ?+    mark  (on-poke:default mark vase)
-        %echo-action
-      ~&  >  %echo-action
-      =^  cards  state
-      (handle-action:main !<(action:echo vase))
-      [cards this]
-        %echo-update
-      ~&  >  %echo-update
-      =^  cards  state
-      (handle-update:main !<(update:echo vase))
-      [cards this]
-    ==
-  ++  on-arvo   on-arvo:default
-  ++  on-watch
-    |=  =path
-    ^-  (quip card _this)
-    ?+    path  (on-watch:default path)
-        [%values ~]
-      :_  this
-      ~[[%give %fact ~[/values] %echo-update !>(`update:echo`initial+values)]]
-    ==
-  ++  on-leave  on-leave:default
-  ++  on-peek
-    |=  =path
-    ^-  (unit (unit cage))
-    ?+    path  (on-peek:default path)
-        [%x %values ~]
-      ``noun+!>(values)
-    ==
-  ++  on-agent  on-agent:default
-  ++  on-fail   on-fail:default
-  --
-  |_  =bowl:gall
-  ++  handle-action
-    |=  =action:echo
-    ^-  (quip card _state)
-    ?-    -.action
-      ::
-        %push
-      =.  values.state  (weld values.state ~[value.action])
-      ~&  >  values.state
-      ~&  >  sup.bowl
-      :_  state
-      :~  [%give %fact ~[/values] [%echo-update !>(`update:echo`change+values)]]
-      ==
-      ::
-        %pop
-      =.  values.state  (snip values.state)
-      ~&  >  values.state
-      :_  state
-      :~  [%give %fact ~[/values] [%echo-update !>(`update:echo`change+values)]]
-      ==
-    ==
-  ++  handle-update
-    |=  =update:echo
-    ^-  (quip card _state)
-    ?-    -.update
-        %change
-      :_  state
-      :~  [%give %fact ~[/values] %echo-update !>(`update:echo`change+values)]
-      ==
-      ::
-        %initial
-      :_  state
-      :~  [%give %fact ~[/values] %echo-update !>(`update:echo`initial+values)]
-      ==
-    ==
-  --
-```
-
-**`/sur/echo.hoon`**
-
-```
-|%
-+$  action
-  $%  [%push value=@]
-      [%pop ~]
-  ==
-+$  update
-  $%  [%initial (list @)]
-      [%change (list @)]
-  ==
---
-```
-
-**`/lib/echo.hoon`**
-
-```hoon
-/-  *echo
-|%
-++  dejs-action
-  =,  dejs:format
-  |=  jon=json
-  ^-  action
-  %.  jon
-  %-  of
-  :~  [%push (ot ~[value+ni])]
-      [%pop (ot ~)]
-  ==
-++  enjs-update
-  =,  enjs:format
-  |=  upd=update
-  ^-  json
-  |^
-  ?-    -.q.upd
-      %initial
-    %-  frond  %values a+`(list json)`(jsonify-values values)
-  ::
-      %change
-    %-  frond  %values a+`(list json)`(jsonify-values values)
-  ==
-  ++  jsonify-values
-    |=  values=(list @)
-    ^-  (list json)
-    (turn values |=(a=@ n+(scot %ud a)))
-  --
---
-```
-
-**`/mar/echo/action.hoon`**
-
-```
-/-  *echo
-/+  *echo
-|_  =action
 ++  grab
   |%
   ++  noun  action
-  ++  json  dejs-action
-  --
-++  grow
-  |%
-  ++  noun  action
+  ++  json
+    =,  dejs:format
+    |=  jon=json
+    ^-  action
+    %.  jon
+    %-  of
+    :~  [%push (ot ~[target+(se %p) value+ni])]
+        [%pop (se %p)]
+    ==
   --
 ++  grad  %noun
 --
 ```
 
-**`/mar/echo/update.hoon`**
+**`/mar/delta/update.hoon`**
 
 ```hoon
-/-  *echo
-/+  *echo
-|_  =update
-++  grab
-  |%
-  ++  noun  update
-  ++  json  (enjs-update update)
-  --
+/-  *delta
+|_  upd=update
 ++  grow
+  |%
+  ++  noun  upd
+  ++  json
+    =,  enjs:format
+    ^-  ^json
+    ?-    -.upd
+      %pop   (frond 'pop' s+(scot %p target.upd))
+      %init  (frond 'init' a+(turn values.upd numb))
+      %push  %+  frond  'push'
+             %-  pairs
+             :~  ['target' s+(scot %p target.upd)]
+                 ['value' (numb value.upd)]
+    ==       ==
+  --
+++  grab
   |%
   ++  noun  update
   --
@@ -1418,315 +1185,122 @@ Let's take `%delta` from our back-end work and update it to have a small front-e
 --
 ```
 
-Instead of a subscribing agent, we will introduce a client front-end page which will subscribe and interact.
+We also need to an a `desk.docket-0` file to the root of the desk to configure the app tile and source of front-end files:
 
-Mount and make this desk as usual:
-
-```hoon
-> |merge %echo our %base
-
-> |mount %echo
-```
-
-```sh
-$ cd zod/echo
-$ echo "~[%echo]" > desk.bill
-```
-
-and save the above file to `echo/app/echo.hoon`.
+**desk.docket-0**
 
 ```hoon
-> |commit %echo
-
-> |install our %echo
-kiln: installing %echo locally  
-gall: installing %echo  
-docket: awaiting manual glob for %echo desk  
+:~
+  title+'Delta'
+  info+'A stack.'
+  color+0xd9.b06d
+  version+[0 0 1]
+  website+'https://urbit.org'
+  license+'MIT'
+  base+'delta'
+  glob-ames+[~zod 0v0]
+==
 ```
 
-The CLI tools still work like they did in `%charlie` and `%delta`, but now we're primarily interested in the front end.
+Commit these changes to the `%delta` desk:
+
+```hoon
+> |commit %delta
+```
+
+The CLI tools still work like they did in `%charlie` and the old `%delta`, but now we're primarily interested in the front end.
 
 The front-end itself will be served from the ship by the standard `%docket` agent available on every Urbit ship.  While you can construct HTTP requests directly, most of the time you'll just use the `@urbit/http-api` library functions.
 
-We will build the React front-end using Node.js.  Install the library `npm i @urbit/http-api`.  Set the `homepage` to `/apps/echo` in `package.json`.  There are a couple of other small tweaks documented in the [React app setup](https://urbit.org/docs/userspace/full-stack/7-react-setup) page as well.
+We will build the React front-end using Node.js. Run `npx create-react-app delta-ui`. Enter the new `delta-ui` directory and run `npm i @urbit/http-api`. Change the `"name"` in `package.json` to `"delta"` and add a new entry: `"homepage": "/apps/delta/",`. Add `<script src="/session.js"></script>` to the `<head>` section of `public/index.html` so our React app can discover our ship name.
 
-We need to define a few functions in our `App.js` file:
 
-**`init()`**
+Next, we can delete the contents of `src/App.js` and add our own code:
 
-```js
-init = () => {
-  this.getStack()
-  .then(
-    (result) => {
-      this.handleUpdate(result);
-      this.setState({latestUpdate: result.time}); 
-      this.subscribe()
-    },
-    (err) => {
-      this.setErrorMsg("Connection failed");
-      this.setState({status: "err"})
-    }
-  )
-};
-```
+```javascript
+import React, {Component} from 'react';
+import Urbit from '@urbit/http-api';
 
-**`getStack()`**
+class App extends Component {
+  constructor(props) {
+    super(props);
+    window.urbit = new Urbit("");
+    window.urbit.ship = window.ship;
+    this.state = {vals: [], val: ""}
+    this.subscribe();
+  };
 
-```js
-getStack = async () => {
-  const {entries: e} = this.state;
-  const path = `/values`;
-  return window.urbit.scry({
-    app: "echo",
-    path: path
-  })
-};
-```
-
-**`moreStack()`**
-
-```js
-moreStack = () => {
-  this.getStack()
-  .then(
-    (result) => {this.handleUpdate(result)},
-    (err) => {this.setErrorMsg("Fetching more entries failed")}
-  )
-};
-```
-
-**`subscribe()`**
-
-```js
-subscribe = () => {
-  try {
+  subscribe = () => {
     window.urbit.subscribe({
-      app: "echo",
+      app: "delta",
       path: "/values",
-      event: this.handleUpdate,
-      err: ()=>this.setErrorMsg("Subscription rejected"),
-      quit: ()=>this.setErrorMsg("Kicked from subscription")
+      event: this.handleUpdate
     })
-  } catch {
-    this.setErrorMsg("Subscription failed")
-  }
-};
-```
+  };
 
-**`push()`**
+  pop = () => {
+    window.urbit.poke({
+      app: "delta",
+      mark: "delta-action",
+      json: {"pop": "~" + window.ship}
+    })
+  };
 
-```js
-push = (value) => {
-  window.urbit.poke({
-    app: "echo",
-    mark: "echo-action",
-    json: {"push": {"value":value}},
-    onError: ()=>this.setErrorMsg("Pop rejected")
-  })
-  this.setState({
-        ...rmModalShow: false, entryToDelete: null})
-        ...(toE && { values: values }),
-  })
-};
-```
+  push = () => {
+    const val = parseInt(this.state.val);
+    if (isNaN(val)) return;
+    const target = "~" + window.ship;
+    window.urbit.poke({
+      app: "delta",
+      mark: "delta-action",
+      json: {"push": {"target": target, "value": val}}
+    })
+    this.setState({val: ""})
+  };
 
-**`pop()`**
-
-```js
-pop = (value) => {
-  window.urbit.poke({
-    app: "echo",
-    mark: "echo-action",
-    json: {"pop": ~},
-    onError: ()=>this.setErrorMsg("Pop rejected")
-  })
-  this.setState({rmModalShow: false, entryToDelete: null})
-};
-```
-
-**`handleUpdate()`**
-
-```js
-handleUpdate = (upd) => {
-  const { entries, drafts, results, latestUpdate } = this.state;
-  if (upd.time !== latestUpdate) {
-    if ("values" in upd) {
-      this.setState({ values: values.concat(upd.values) });
-    } else if ("push" in upd) {
-      const { time, push } = upd;
-      const eInd = this.spot(add.id, values);
-      const rInd = this.spot(add.id, results);
-      const toE =
-        entries.length === 0 || add.id > entries[entries.length - 1].id;
-      const toR = this.inSearch(add.id, time);
-      toE && entries.splice(eInd, 0, add);
-      toR && results.splice(rInd, 0, add);
-      this.setState({
-        ...(toE && { entries: entries }),
-        ...(toR && { results: results }),
-        latestUpdate: time,
-      });
-    } else if ("pop" in upd) {
-      const { time, pop } = upd;
-      const eInd = entries.findIndex((e) => e.id === edit.id);
-      const rInd = results.findIndex((e) => e.id === edit.id);
-      const toE = eInd !== -1;
-      const toR = rInd !== -1 && this.inSearch(edit.id, time);
-      if (toE) entries[eInd] = edit;
-      if (toR) results[rInd] = edit;
-      (toE || toR) && delete drafts[edit.id];
-      this.setState({
-        ...(toE && { entries: entries }),
-        ...(toR && { results: results }),
-        ...((toE || toR) && { drafts: drafts }),
-        latestUpdate: time,
-      });
+  handleUpdate = (upd) => {
+    const {vals} = this.state;
+    if ('init' in upd) {
+      this.setState({vals: upd.init})
+    } else if ('push' in upd) {
+      vals.unshift(upd.push.value);
+      this.setState({vals: vals})
+    } else if ('pop' in upd) {
+      vals.shift();
+      this.setState({vals: vals})
     }
-  }
-};
-```
+  };
 
-**`submitNew()`**
-
-```js
-submitNew = (value) => {
-  window.urbit.poke({
-    app: "echo",
-    mark: "echo-action",
-    json: { push: { value: value } },
-    onSuccess: () => this.setState({ newValue: {} }),
-    onError: () => this.setErrorMsg("New value rejected"),
-  });
-};
-```
-
-**`delete`**
-
-```js
-delete = (id) => {
-  window.urbit.poke({
-    app: "echo",
-    mark: "echo-action",
-    json: {"pop": ~ },
-    onError: ()=>this.setErrorMsg("Deletion rejected")
-  })
-  this.setState({rmModalShow: false, entryToDelete: null})
-};
-```
-
-**`printEntry()`**
-
-```js
-printEntry = ({id, txt}) => {
-  const {drafts} = this.state;
-  const edit = (id in drafts);
-  const draft = (id in drafts) ? drafts[id] : null; 
-  const reg = /(?:\r?\n[ \t]*){2,}(?!\s*$)/;
-  let d = new Date(id);         
-  return (
-    <Card key={id}>
-      <Card.Header
-        className="fs-4 d-flex align-items-center justify-content-between"
-      >
-        {d.toLocaleString()}
-        <CloseButton
-          className="fs-6"
-          onClick={() => (edit) ? this.cancelEdit(id) : this.openRmModal(id)}
-        />
-      </Card.Header>
-      <Card.Body onClick={()=>this.setEdit(id)}>
-        {(edit)
-         ? this.editBox(id, txt, draft)
-         : txt.split(reg).map((e, ind) => <p key={ind}>{e}</p>)
-        }
-      </Card.Body>
-      {(edit) &&
-        <Button
-          variant="outline-primary"
-          className="mx-3 mb-3"
-          onClick={()=>this.submitEdit(id, draft)}
-        >
-          Submit
-        </Button>
-      }
-    </Card>
-  )
+  render() {
+    return (
+      <>
+        <div>
+            <input
+              type="text"
+              value={this.state.val}
+              onChange={(e) => this.setState({val: e.target.value})}
+            />
+            <button onClick={() => this.push()}>Push</button>
+        </div>
+        <button onClick={() => this.pop()}>Pop</button>
+        <ul>
+          {this.state.vals.map((val, ind) => <li key={ind}>{val}</li>)}
+        </ul>
+      </>
+    )
+  };
 };
 
+export default App;
 ```
 
-**`render()`**
 
-```js
-function NumberList(props) {
-  const numbers = props.numbers;
-  const listItems = numbers.map((number) =>
-    <li key={number.toString()}>{number}</li>
-  );
-  return (
-    <ul>{listItems}</ul>
-  );
-}
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render();
-
-render() {
-  return (
-    <React.Fragment>
-      {this.rmModal()}
-      <div className="m-3 d-flex justify-content-center">
-        <Card style={{maxWidth: "50rem", width: "100%"}}>
-          <Tabs defaultActiveKey="echo" className="fs-2">
-            <Tab eventKey="echo" title="Echo">
-              <BottomScrollListener onBottom={()=>this.values()}>
-                {(scrollRef) =>
-                  <Stack gap={5} className="m-3 d-flex">
-                    {this.newValue()}
-                    {this.state.entries.map(e => this.printValue(e))}
-                  </Stack>
-                  <NumberList numbers={values} />
-                }
-              </BottomScrollListener>
-            </Tab>
-          </Tabs>
-          {this.status()}
-        </Card>
-      </div>
-    </React.Fragment>
-  )
-}
-```
-
-The webpage itself is built using Node.js.  We need to build the React app using `npm run build`, then after installing the desk we can upload the file glob to the `%docket` server app.
-
-We provide the following files on the desk:
-
-```
-ourfiles
-├── desk.bill
-├── sys.kelvin
-├── desk.docket-0
-├── app
-│   └── echo.hoon
-├── lib
-│   └── echo.hoon
-├── mar
-│   ├── bill.hoon
-│   ├── docket-0.hoon
-│   ├── kelvin.hoon
-│   └── echo
-│       ├── action.hoon
-│       └── update.hoon
-└── sur
-    └── echo.hoon
-```
+The webpage itself is built using Node.js.  We need to build the React app using `npm run build`, then after installing the desk we can upload the file glob to the `%docket` server app by navigating to `localhost:8080/docket/upload`, selecting our desk, selecting the build directory in `delta-ui`, and hitting upload.
 
 The last thing we need to do is publish our app so other users can install it from our ship.  To do that, we just run the following command in the dojo:
 
 ```hoon
-:treaty|publish %echo
+:treaty|publish %delta
 ```
 
 Let's take a quick look at the front-end functionality now.
