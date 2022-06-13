@@ -1129,196 +1129,59 @@ A cookie may be requested using the ship's web login code (by default for ~zod, 
 
 ### JSON Manipulation
 
-
 The Urbit Visor Chrome extension produced by dcSpark bridges Web 2.0 applications to web3 on Urbit.  A UV integration would be an excellent hackathon-size project.
 
-### Stack Agent `%echo`
+### Updates to `%delta`
 
-Let's take `%delta` from our back-end work and update it to have a small front-end which displays its state and allows the front-end to push and pop values.  This is `%echo`:
+Let's take `%delta` from our back-end work and update it to have a small front-end which displays its state and allows the front-end to push and pop values. We can leave the `/sur` file and agent the same, and just add JSON encoding & decoding functions to our mark files:
 
-**`/app/echo.hoon`**
+**`/mar/delta/action.hoon`**
 
 ```hoon
-  /-  echo
-  /+  default-agent, dbug
+/-  *delta
+|_  act=action
+++  grow
   |%
-  +$  versioned-state
-    $%  state-0
-    ==
-  +$  state-0
-    $:  [%0 values=(list @)]
-    ==
-  +$  card  card:agent:gall
+  ++  noun  act
   --
-  %-  agent:dbug
-  =|  state-0
-  =*  state  -
-  ^-  agent:gall
-  =<
-  |_  =bowl:gall
-  +*  this      .
-      default   ~(. (default-agent this %|) bowl)
-      main      ~(. +> bowl)
-  ++  on-init
-    ^-  (quip card _this)
-    ~&  >  '%echo initialized successfully'
-    =.  state  [%0 *(list @)]
-    `this
-  ++  on-save   on-save:default
-  ++  on-load   on-load:default
-  ++  on-poke
-    |=  [=mark =vase]
-    ^-  (quip card _this)
-    ?+    mark  (on-poke:default mark vase)
-        %echo-action
-      ~&  >  %echo-action
-      =^  cards  state
-      (handle-action:main !<(action:echo vase))
-      [cards this]
-        %echo-update
-      ~&  >  %echo-update
-      =^  cards  state
-      (handle-update:main !<(update:echo vase))
-      [cards this]
-    ==
-  ++  on-arvo   on-arvo:default
-  ++  on-watch
-    |=  =path
-    ^-  (quip card _this)
-    ?+    path  (on-watch:default path)
-        [%values ~]
-      :_  this
-      ~[[%give %fact ~[/values] %echo-update !>(`update:echo`initial+values)]]
-    ==
-  ++  on-leave  on-leave:default
-  ++  on-peek
-    |=  =path
-    ^-  (unit (unit cage))
-    ?+    path  (on-peek:default path)
-        [%x %values ~]
-      ``noun+!>(values)
-    ==
-  ++  on-agent  on-agent:default
-  ++  on-fail   on-fail:default
-  --
-  |_  =bowl:gall
-  ++  handle-action
-    |=  =action:echo
-    ^-  (quip card _state)
-    ?-    -.action
-      ::
-        %push
-      =.  values.state  (weld values.state ~[value.action])
-      ~&  >  values.state
-      ~&  >  sup.bowl
-      :_  state
-      :~  [%give %fact ~[/values] [%echo-update !>(`update:echo`change+values)]]
-      ==
-      ::
-        %pop
-      =.  values.state  (snip values.state)
-      ~&  >  values.state
-      :_  state
-      :~  [%give %fact ~[/values] [%echo-update !>(`update:echo`change+values)]]
-      ==
-    ==
-  ++  handle-update
-    |=  =update:echo
-    ^-  (quip card _state)
-    ?-    -.update
-        %change
-      :_  state
-      :~  [%give %fact ~[/values] %echo-update !>(`update:echo`change+values)]
-      ==
-      ::
-        %initial
-      :_  state
-      :~  [%give %fact ~[/values] %echo-update !>(`update:echo`initial+values)]
-      ==
-    ==
-  --
-```
-
-**`/sur/echo.hoon`**
-
-```
-|%
-+$  action
-  $%  [%push value=@]
-      [%pop ~]
-  ==
-+$  update
-  $%  [%initial (list @)]
-      [%change (list @)]
-  ==
---
-```
-
-**`/lib/echo.hoon`**
-
-```hoon
-/-  *echo
-|%
-++  dejs-action
-  =,  dejs:format
-  |=  jon=json
-  ^-  action
-  %.  jon
-  %-  of
-  :~  [%push (ot ~[value+ni])]
-      [%pop (ot ~)]
-  ==
-++  enjs-update
-  =,  enjs:format
-  |=  upd=update
-  ^-  json
-  |^
-  ?-    -.q.upd
-      %initial
-    %-  frond  %values a+`(list json)`(jsonify-values values)
-  ::
-      %change
-    %-  frond  %values a+`(list json)`(jsonify-values values)
-  ==
-  ++  jsonify-values
-    |=  values=(list @)
-    ^-  (list json)
-    (turn values |=(a=@ n+(scot %ud a)))
-  --
---
-```
-
-**`/mar/echo/action.hoon`**
-
-```
-/-  *echo
-/+  *echo
-|_  =action
 ++  grab
   |%
   ++  noun  action
-  ++  json  dejs-action
-  --
-++  grow
-  |%
-  ++  noun  action
+  ++  json
+    =,  dejs:format
+    |=  jon=json
+    ^-  action
+    %.  jon
+    %-  of
+    :~  [%push (ot ~[target+(se %p) value+ni])]
+        [%pop (se %p)]
+    ==
   --
 ++  grad  %noun
 --
 ```
 
-**`/mar/echo/update.hoon`**
+**`/mar/delta/update.hoon`**
 
 ```hoon
-/-  *echo
-/+  *echo
-|_  =update
-++  grab
-  |%
-  ++  noun  update
-  ++  json  (enjs-update update)
-  --
+/-  *delta
+|_  upd=update
 ++  grow
+  |%
+  ++  noun  upd
+  ++  json
+    =,  enjs:format
+    ^-  ^json
+    ?-    -.upd
+      %pop   (frond 'pop' s+(scot %p target.upd))
+      %init  (frond 'init' a+(turn values.upd numb))
+      %push  %+  frond  'push'
+             %-  pairs
+             :~  ['target' s+(scot %p target.upd)]
+                 ['value' (numb value.upd)]
+    ==       ==
+  --
+++  grab
   |%
   ++  noun  update
   --
@@ -1326,37 +1189,17 @@ Let's take `%delta` from our back-end work and update it to have a small front-e
 --
 ```
 
-Instead of a subscribing agent, we will introduce a client front-end page which will subscribe and interact.
-
-Mount and make this desk as usual:
+Commit these changes to the `%delta` desk:
 
 ```hoon
-> |merge %echo our %base
-
-> |mount %echo
+> |commit %delta
 ```
 
-```sh
-$ cd zod/echo
-$ echo "~[%echo]" > desk.bill
-```
-
-and save the above file to `echo/app/echo.hoon`.
-
-```hoon
-> |commit %echo
-
-> |install our %echo
-kiln: installing %echo locally  
-gall: installing %echo  
-docket: awaiting manual glob for %echo desk  
-```
-
-The CLI tools still work like they did in `%charlie` and `%delta`, but now we're primarily interested in the front end.
+The CLI tools still work like they did in `%charlie` and the old `%delta`, but now we're primarily interested in the front end.
 
 The front-end itself will be served from the ship by the standard `%docket` agent available on every Urbit ship.  While you can construct HTTP requests directly, most of the time you'll just use the `@urbit/http-api` library functions.
 
-We will build the React front-end using Node.js.  Install the library `npm i @urbit/http-api`.  Set the `homepage` to `/apps/echo` in `package.json`.  There are a couple of other small tweaks documented in the [React app setup](https://urbit.org/docs/userspace/full-stack/7-react-setup) page as well.
+We will build the React front-end using Node.js.  Install the library `npm i @urbit/http-api`.  Set the `homepage` to `/apps/delta` in `package.json`.  There are a couple of other small tweaks documented in the [React app setup](https://urbit.org/docs/userspace/full-stack/7-react-setup) page as well.
 
 We need to define a few functions in our `App.js` file:
 
