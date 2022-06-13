@@ -1121,11 +1121,7 @@ We will implement a version of our stack app that runs on one ship and doesn't t
 
 ### Talking to a Ship
 
-We don't need to change much in our current Gall agent, but we do need to register endpoints and validate received input using a cookie.
-
 Eyre is the HTTP server vane of Arvo.  It will receive and handle `GET` and `PUT` messages.  The web client will produce a unique channel ID and connect that channel to the agent to monitor subscriptions and acks.
-
-A cookie may be requested using the ship's web login code (by default for ~zod, `lidlut-tabwed-pillex-ridrup`).
 
 ### JSON Manipulation
 
@@ -1189,6 +1185,23 @@ Let's take `%delta` from our back-end work and update it to have a small front-e
 --
 ```
 
+We also need to an a `desk.docket-0` file to the root of the desk to configure the app tile and source of front-end files:
+
+**desk.docket-0**
+
+```hoon
+:~
+  title+'Delta'
+  info+'A stack.'
+  color+0xd9.b06d
+  version+[0 0 1]
+  website+'https://urbit.org'
+  license+'MIT'
+  base+'delta'
+  glob-ames+[~zod 0v0]
+==
+```
+
 Commit these changes to the `%delta` desk:
 
 ```hoon
@@ -1199,285 +1212,95 @@ The CLI tools still work like they did in `%charlie` and the old `%delta`, but n
 
 The front-end itself will be served from the ship by the standard `%docket` agent available on every Urbit ship.  While you can construct HTTP requests directly, most of the time you'll just use the `@urbit/http-api` library functions.
 
-We will build the React front-end using Node.js.  Install the library `npm i @urbit/http-api`.  Set the `homepage` to `/apps/delta` in `package.json`.  There are a couple of other small tweaks documented in the [React app setup](https://urbit.org/docs/userspace/full-stack/7-react-setup) page as well.
+We will build the React front-end using Node.js. Run `npx create-react-app delta-ui`. Enter the new `delta-ui` directory and run `npm i @urbit/http-api`. Change the `"name"` in `package.json` to `"delta"` and add a new entry: `"homepage": "/apps/delta/",`. Add `<script src="/session.js"></script>` to the `<head>` section of `public/index.html` so our React app can discover our ship name.
 
-We need to define a few functions in our `App.js` file:
 
-**`init()`**
+Next, we can delete the contents of `src/App.js` and add our own code:
 
-```js
-init = () => {
-  this.getStack()
-  .then(
-    (result) => {
-      this.handleUpdate(result);
-      this.setState({latestUpdate: result.time}); 
-      this.subscribe()
-    },
-    (err) => {
-      this.setErrorMsg("Connection failed");
-      this.setState({status: "err"})
-    }
-  )
-};
-```
+```javascript
+import React, {Component} from 'react';
+import Urbit from '@urbit/http-api';
 
-**`getStack()`**
+class App extends Component {
+  constructor(props) {
+    super(props);
+    window.urbit = new Urbit("");
+    window.urbit.ship = window.ship;
+    this.state = {vals: [], val: ""}
+    this.subscribe();
+  };
 
-```js
-getStack = async () => {
-  const {entries: e} = this.state;
-  const path = `/values`;
-  return window.urbit.scry({
-    app: "echo",
-    path: path
-  })
-};
-```
-
-**`moreStack()`**
-
-```js
-moreStack = () => {
-  this.getStack()
-  .then(
-    (result) => {this.handleUpdate(result)},
-    (err) => {this.setErrorMsg("Fetching more entries failed")}
-  )
-};
-```
-
-**`subscribe()`**
-
-```js
-subscribe = () => {
-  try {
+  subscribe = () => {
     window.urbit.subscribe({
-      app: "echo",
+      app: "delta",
       path: "/values",
-      event: this.handleUpdate,
-      err: ()=>this.setErrorMsg("Subscription rejected"),
-      quit: ()=>this.setErrorMsg("Kicked from subscription")
+      event: this.handleUpdate
     })
-  } catch {
-    this.setErrorMsg("Subscription failed")
-  }
-};
-```
+  };
 
-**`push()`**
+  pop = () => {
+    window.urbit.poke({
+      app: "delta",
+      mark: "delta-action",
+      json: {"pop": "~" + window.ship}
+    })
+  };
 
-```js
-push = (value) => {
-  window.urbit.poke({
-    app: "echo",
-    mark: "echo-action",
-    json: {"push": {"value":value}},
-    onError: ()=>this.setErrorMsg("Pop rejected")
-  })
-  this.setState({
-        ...rmModalShow: false, entryToDelete: null})
-        ...(toE && { values: values }),
-  })
-};
-```
+  push = () => {
+    const val = parseInt(this.state.val);
+    if (isNaN(val)) return;
+    const target = "~" + window.ship;
+    window.urbit.poke({
+      app: "delta",
+      mark: "delta-action",
+      json: {"push": {"target": target, "value": val}}
+    })
+    this.setState({val: ""})
+  };
 
-**`pop()`**
-
-```js
-pop = (value) => {
-  window.urbit.poke({
-    app: "echo",
-    mark: "echo-action",
-    json: {"pop": ~},
-    onError: ()=>this.setErrorMsg("Pop rejected")
-  })
-  this.setState({rmModalShow: false, entryToDelete: null})
-};
-```
-
-**`handleUpdate()`**
-
-```js
-handleUpdate = (upd) => {
-  const { entries, drafts, results, latestUpdate } = this.state;
-  if (upd.time !== latestUpdate) {
-    if ("values" in upd) {
-      this.setState({ values: values.concat(upd.values) });
-    } else if ("push" in upd) {
-      const { time, push } = upd;
-      const eInd = this.spot(add.id, values);
-      const rInd = this.spot(add.id, results);
-      const toE =
-        entries.length === 0 || add.id > entries[entries.length - 1].id;
-      const toR = this.inSearch(add.id, time);
-      toE && entries.splice(eInd, 0, add);
-      toR && results.splice(rInd, 0, add);
-      this.setState({
-        ...(toE && { entries: entries }),
-        ...(toR && { results: results }),
-        latestUpdate: time,
-      });
-    } else if ("pop" in upd) {
-      const { time, pop } = upd;
-      const eInd = entries.findIndex((e) => e.id === edit.id);
-      const rInd = results.findIndex((e) => e.id === edit.id);
-      const toE = eInd !== -1;
-      const toR = rInd !== -1 && this.inSearch(edit.id, time);
-      if (toE) entries[eInd] = edit;
-      if (toR) results[rInd] = edit;
-      (toE || toR) && delete drafts[edit.id];
-      this.setState({
-        ...(toE && { entries: entries }),
-        ...(toR && { results: results }),
-        ...((toE || toR) && { drafts: drafts }),
-        latestUpdate: time,
-      });
+  handleUpdate = (upd) => {
+    const {vals} = this.state;
+    if ('init' in upd) {
+      this.setState({vals: upd.init})
+    } else if ('push' in upd) {
+      vals.unshift(upd.push.value);
+      this.setState({vals: vals})
+    } else if ('pop' in upd) {
+      vals.shift();
+      this.setState({vals: vals})
     }
-  }
-};
-```
+  };
 
-**`submitNew()`**
-
-```js
-submitNew = (value) => {
-  window.urbit.poke({
-    app: "echo",
-    mark: "echo-action",
-    json: { push: { value: value } },
-    onSuccess: () => this.setState({ newValue: {} }),
-    onError: () => this.setErrorMsg("New value rejected"),
-  });
-};
-```
-
-**`delete`**
-
-```js
-delete = (id) => {
-  window.urbit.poke({
-    app: "echo",
-    mark: "echo-action",
-    json: {"pop": ~ },
-    onError: ()=>this.setErrorMsg("Deletion rejected")
-  })
-  this.setState({rmModalShow: false, entryToDelete: null})
-};
-```
-
-**`printEntry()`**
-
-```js
-printEntry = ({id, txt}) => {
-  const {drafts} = this.state;
-  const edit = (id in drafts);
-  const draft = (id in drafts) ? drafts[id] : null; 
-  const reg = /(?:\r?\n[ \t]*){2,}(?!\s*$)/;
-  let d = new Date(id);         
-  return (
-    <Card key={id}>
-      <Card.Header
-        className="fs-4 d-flex align-items-center justify-content-between"
-      >
-        {d.toLocaleString()}
-        <CloseButton
-          className="fs-6"
-          onClick={() => (edit) ? this.cancelEdit(id) : this.openRmModal(id)}
-        />
-      </Card.Header>
-      <Card.Body onClick={()=>this.setEdit(id)}>
-        {(edit)
-         ? this.editBox(id, txt, draft)
-         : txt.split(reg).map((e, ind) => <p key={ind}>{e}</p>)
-        }
-      </Card.Body>
-      {(edit) &&
-        <Button
-          variant="outline-primary"
-          className="mx-3 mb-3"
-          onClick={()=>this.submitEdit(id, draft)}
-        >
-          Submit
-        </Button>
-      }
-    </Card>
-  )
+  render() {
+    return (
+      <>
+        <div>
+            <input
+              type="text"
+              value={this.state.val}
+              onChange={(e) => this.setState({val: e.target.value})}
+            />
+            <button onClick={() => this.push()}>Push</button>
+        </div>
+        <button onClick={() => this.pop()}>Pop</button>
+        <ul>
+          {this.state.vals.map((val, ind) => <li key={ind}>{val}</li>)}
+        </ul>
+      </>
+    )
+  };
 };
 
+export default App;
 ```
 
-**`render()`**
 
-```js
-function NumberList(props) {
-  const numbers = props.numbers;
-  const listItems = numbers.map((number) =>
-    <li key={number.toString()}>{number}</li>
-  );
-  return (
-    <ul>{listItems}</ul>
-  );
-}
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render();
-
-render() {
-  return (
-    <React.Fragment>
-      {this.rmModal()}
-      <div className="m-3 d-flex justify-content-center">
-        <Card style={{maxWidth: "50rem", width: "100%"}}>
-          <Tabs defaultActiveKey="echo" className="fs-2">
-            <Tab eventKey="echo" title="Echo">
-              <BottomScrollListener onBottom={()=>this.values()}>
-                {(scrollRef) =>
-                  <Stack gap={5} className="m-3 d-flex">
-                    {this.newValue()}
-                    {this.state.entries.map(e => this.printValue(e))}
-                  </Stack>
-                  <NumberList numbers={values} />
-                }
-              </BottomScrollListener>
-            </Tab>
-          </Tabs>
-          {this.status()}
-        </Card>
-      </div>
-    </React.Fragment>
-  )
-}
-```
-
-The webpage itself is built using Node.js.  We need to build the React app using `npm run build`, then after installing the desk we can upload the file glob to the `%docket` server app.
-
-We provide the following files on the desk:
-
-```
-ourfiles
-├── desk.bill
-├── sys.kelvin
-├── desk.docket-0
-├── app
-│   └── echo.hoon
-├── lib
-│   └── echo.hoon
-├── mar
-│   ├── bill.hoon
-│   ├── docket-0.hoon
-│   ├── kelvin.hoon
-│   └── echo
-│       ├── action.hoon
-│       └── update.hoon
-└── sur
-    └── echo.hoon
-```
+The webpage itself is built using Node.js.  We need to build the React app using `npm run build`, then after installing the desk we can upload the file glob to the `%docket` server app by navigating to `localhost:8080/docket/upload`, selecting our desk, selecting the build directory in `delta-ui`, and hitting upload.
 
 The last thing we need to do is publish our app so other users can install it from our ship.  To do that, we just run the following command in the dojo:
 
 ```hoon
-:treaty|publish %echo
+:treaty|publish %delta
 ```
 
 Let's take a quick look at the front-end functionality now.
