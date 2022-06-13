@@ -891,141 +891,97 @@ Agents talk to each other by means of `card`s, which are messages requesting or 
 **`/app/delta.hoon`**
 
 ```hoon
-  /-  delta
-  /+  default-agent, dbug
-  |%
-  +$  versioned-state
-    $%  state-0
-    ==
-  +$  state-0
-    $:  [%0 values=(list @)]
-    ==
-  +$  card  card:agent:gall
-  --
-  %-  agent:dbug
-  =|  state-0
-  =*  state  -
-  ^-  agent:gall
-  =<
-  |_  =bowl:gall
-  +*  this      .
-      default   ~(. (default-agent this %|) bowl)
-      main      ~(. +> bowl)
-  ++  on-init
-    ^-  (quip card _this)
-    ~&  >  '%delta initialized successfully'
-    =.  state  [%0 *(list @)]
-    `this
-  ++  on-save   on-save:default
-  ++  on-load   on-load:default
-  ++  on-poke
-    |=  [=mark =vase]
-    ^-  (quip card _this)
-    ?+    mark  (on-poke:default mark vase)
-        %delta-action
-      ~&  >  %delta-action
-      =^  cards  state
-      (handle-action:main !<(action:delta vase))
-      [cards this]
-        %delta-update
-      ~&  >  %delta-update
-      =^  cards  state
-      (handle-update:main !<(update:delta vase))
-      [cards this]
-    ==
-  ++  on-arvo   on-arvo:default
-  ++  on-watch
-    |=  =path
-    ^-  (quip card _this)
-    ?+    path  (on-watch:default path)
-        [%values ~]
-      :_  this
-      ~[[%give %fact ~[/values] %delta-update !>(`update:delta`initial+values)]]
-    ==
-  ++  on-leave  on-leave:default
-  ++  on-peek
-    |=  =path
-    ^-  (unit (unit cage))
-    ?+    path  (on-peek:default path)
-        [%x %values ~]
-      ``noun+!>(values)
-    ==
-  ++  on-agent  on-agent:default
-  ++  on-fail   on-fail:default
-  --
-  |_  =bowl:gall
-  ++  handle-action
-    |=  =action:delta
-    ^-  (quip card _state)
-    ?-    -.action
-      ::
-        %push-remote
-      :_  state
-      ~[[%pass /poke-wire %agent [target.action %delta] %poke %delta-action !>([%push-local value.action])]]
-      ::
-        %push-local
-      =.  values.state  (weld values.state ~[value.action])
-      ~&  >  values.state
-      ~&  >  sup.bowl
-      :_  state
-      :~  [%give %fact ~[/values] [%delta-update !>(`update:delta`change+values)]]
-      ==
-      ::
-        %pop-remote
-      :_  state
-      ~[[%pass /poke-wire %agent [target.action %delta] %poke %delta-action !>(~[%pop-local])]]
-      ::
-        %pop-local
-      =.  values.state  (snip values.state)
-      ~&  >  values.state
-      :_  state
-      :~  [%give %fact ~[/values] [%delta-update !>(`update:delta`change+values)]]
-      ==
-    ==
-  ++  handle-update
-    |=  =update:delta
-    ^-  (quip card _state)
-    ?-    -.update
-        %change
-      :_  state
-      :~  [%give %fact ~[/values] %delta-update !>(`update:delta`change+values)]
-      ==
-      ::
-        %initial
-      :_  state
-      :~  [%give %fact ~[/values] %delta-update !>(`update:delta`initial+values)]
-      ==
-    ==
-  --
+/-  *delta
+/+  default-agent, dbug
+|%
++$  versioned-state
+  $%  state-0
+  ==
++$  state-0
+  $:  [%0 values=(list @)]
+  ==
++$  card  card:agent:gall
+--
+%-  agent:dbug
+=|  state-0
+=*  state  -
+^-  agent:gall
+|_  =bowl:gall
++*  this     .
+    default  ~(. (default-agent this %|) bowl)
+++  on-init   on-init:default
+++  on-save   !>(state)
+++  on-load
+  |=  old=vase
+  ^-  (quip card _this)
+  `this(state !<(state-0 old))
+++  on-poke
+  |=  [=mark =vase]
+  ^-  (quip card _this)
+  ?>  ?=(%delta-action mark)
+  =/  act  !<(action vase)
+  ?-    -.act
+      %push
+    ?:  =(our.bowl target.act)
+      :_  this(values [value.act values])
+      [%give %fact ~[/values] %delta-update !>(`update`act)]~
+    ?>  =(our.bowl src.bowl)
+    :_  this
+    [%pass /pokes %agent [target.act %delta] %poke mark vase]~
+  ::
+      %pop
+    ?:  =(our.bowl target.act)
+      :_  this(values ?~(values ~ t.values))
+      [%give %fact ~[/values] %delta-update !>(`update`act)]~
+    ?>  =(our.bowl src.bowl)
+    :_  this
+    [%pass /pokes %agent [target.act %delta] %poke mark vase]~
+  ==
+::
+++  on-peek
+  |=  =path
+  ^-  (unit (unit cage))
+  ?+  path  (on-peek:default path)
+    [%x %values ~]  ``noun+!>(values)
+  ==
+++  on-watch
+  |=  =path
+  ^-  (quip card _this)
+  ?>  ?=([%values ~] path)
+  :_  this
+  [%give %fact ~ %delta-update !>(`update`[%init values])]~
+++  on-arvo   on-arvo:default
+++  on-leave  on-leave:default
+++  on-agent  on-agent:default
+++  on-fail   on-fail:default
+--
 ```
 
 **`/sur/delta.hoon`**
 
-```
+```hoon
 |%
 +$  action
-  $%  [%push-remote target=@p value=@]
-      [%push-local value=@]
-      [%pop-remote target=@p]
-      [%pop-local ~]
+  $%  [%push target=@p value=@]
+      [%pop target=@p]
   ==
 +$  update
-  $%  [%initial (list @)]
-      [%change (list @)]
+  $%  [%init values=(list @)]
+      action
   ==
 --
 ```
 
 **`/mar/delta/action.hoon`**
 
-```
-/-  delta
-|_  =action:delta
-++  grab
-  |%
-  ++  noun  action:delta
-  --
+```hoon
+/-  *delta
+|_  act=action
 ++  grow
+  |%
+  ++  noun  act
+  --
+++  grab
   |%
   ++  noun  action
   --
@@ -1036,13 +992,13 @@ Agents talk to each other by means of `card`s, which are messages requesting or 
 **`/mar/delta/update.hoon`**
 
 ```hoon
-/-  delta
-|_  =update:delta
-++  grab
-  |%
-  ++  noun  update:delta
-  --
+/-  *delta
+|_  upd=update
 ++  grow
+  |%
+  ++  noun  upd
+  --
+++  grab
   |%
   ++  noun  update
   --
@@ -1053,78 +1009,59 @@ Agents talk to each other by means of `card`s, which are messages requesting or 
 **`/app/delta-follower.hoon`**
 
 ```hoon
-/-  delta
+/-  *delta
 /+  default-agent, dbug
 |%
-+$  versioned-state
-  $%  state-0
-  ==
-+$  state-0  [%0 ~]
 +$  card  card:agent:gall
 --
 %-  agent:dbug
-=|  state-0
-=*  state  -
 ^-  agent:gall
 |_  =bowl:gall
-+*  this      .
-    default   ~(. (default-agent this %|) bowl)
-++  on-init
-  ^-  (quip card _this)
-  ~&  >>  '%delta-follower initialized successfully'
-  `this
-++  on-save   on-save:default
-++  on-load   on-load:default
++*  this     .
+    default  ~(. (default-agent this %|) bowl)
 ++  on-poke
   |=  [=mark =vase]
   ^-  (quip card _this)
-  ?+    mark  (on-poke:default mark vase)
-      %noun
-    =/  action  !<(?([%subscribe @p] [%unsubscribe @p]) vase)
-    ?-    -.action
-        %subscribe
-      :_  this
-      :~  [%pass /values-wire %agent [+.action %delta] %watch /values]
-      ==
-        %unsubscribe
-      :_  this
-      :~  [%pass /values-wire %agent [+.action %delta] %leave ~]
-      ==
-    ==
+  ?>  ?=(%noun mark)
+  =/  action  !<(?([%sub =@p] [%unsub =@p]) vase)
+  ?-    -.action
+      %sub
+    :_  this
+    [%pass /values-wire %agent [p.action %delta] %watch /values]~
+  ::
+      %unsub
+    :_  this
+    [%pass /values-wire %agent [p.action %delta] %leave ~]~
   ==
-++  on-arvo   on-arvo:default                          
-++  on-watch  on-watch:default
-++  on-leave  on-leave:default
-++  on-peek   on-peek:default
+::
 ++  on-agent
   |=  [=wire =sign:agent:gall]
   ^-  (quip card _this)
-  ~&  >>  wire
-  ~&  >>  sign
-  ?+    wire  (on-agent:default wire sign)
-      [%values-wire ~]
-    ?+    -.sign  (on-agent:default wire sign)
-        %watch-ack
-      ?~  p.sign
-        ((slog '%delta-follower: subscribe succeeded!' ~) `this)
-      ((slog '%delta-follower: subscribe failed!' ~) `this)
-    ::
-        %kick
-      %-  (slog '%delta-follower: Got kick, resubscribing...' ~)
-      :_  this
-      :~  [%pass /values-wire %agent [src.bowl %delta] %watch /values]
-      ==
-    ::
-        %fact
-      ~&  >>  fact+p.cage.sign
-      ?+    p.cage.sign  (on-agent:default wire sign)
-          %delta-update
-        ~&  >>  !<(update:delta q.cage.sign)
-        `this
-      ==
-    ==
+  ?>  ?=([%values-wire ~] wire)
+  ?+    -.sign  (on-agent:default wire sign)
+      %watch-ack
+    ?~  p.sign
+      ((slog '%delta-follower: subscribe succeeded!' ~) `this)
+    ((slog '%delta-follower: subscribe failed!' ~) `this)
+  ::
+      %kick
+    %-  (slog '%delta-follower: Got kick, resubscribing...' ~)
+    :_  this
+    [%pass /values-wire %agent [src.bowl %delta] %watch /values]~
+  ::
+    %fact
+    ~&  >>  fact+p.cage.sign
+    ?>  ?=(%delta-update p.cage.sign)
+    ~&  >>  !<(update q.cage.sign)
+    `this
   ==
-::
+++  on-watch  on-watch:default
+++  on-peek   on-peek:default
+++  on-init   on-init:default
+++  on-save   on-save:default
+++  on-load   on-load:default
+++  on-arvo   on-arvo:default
+++  on-leave  on-leave:default
 ++  on-fail   on-fail:default
 --
 ```
@@ -1153,25 +1090,18 @@ and save the above file to `delta/app/delta.hoon`.
 It works like this.  You can interact with `%delta` the same way as `%charlie`, but you can also subscribe to updates in `%delta` with `%delta-follower`.
 
 ```hoon
-> :delta &delta-action [%push-local 30.000]
+> :delta &delta-action [%push ~zod 30.000]
 
-> :delta-follower [%subscribe ~zod]
->>  /values-wire
->>  [%fact cage=[p=%delta-update q=[#t/?([%change it(@)] [%initial it(@)]) q=[30.506.403.037.277.801 30.000 0]]]]
->>  [%fact %delta-update]
->>  [%initial ~[30.000]]
-
-> :delta &delta-action [%push-local 30.000]
+> :delta-follower [%sub ~zod]
 >=
->   %delta-action
->   ~[30.000 30.000]
->   { [p=~[/gall/use/delta-follower/0w2.z7yJs/out/~zod/delta/values-wire /dill //term/1] q=[p=~zod q=/values]]
- [p=~[/gall/use/delta-follower/0w2.z7yJs/out/~zod/delta/values /dill //term/1] q=[p=~zod q=/updates]]                                                        
-}
->>  /values-wire
->>  [%fact cage=[p=%delta-update q=[#t/?([%change it(@)] [%initial it(@)]) q=[111.494.907.914.339 30.000 30.000 0]]]]
+%delta-follower: subscribe succeeded!
 >>  [%fact %delta-update]
->>  [%change ~[30.000 30.000]]
+>>  [%init values=~[30.000]]
+
+> :delta &delta-action [%push ~zod 10.000]
+>=
+>>  [%fact %delta-update]
+>>  [%push target=~zod value=10.000]
 ```
 
 The main thing to note is the use of `%fact` cards.  These are messages sent to all subscribers by the originator.  A subscriber subscribes to a `path` (which depends on the thing it is subscribing to) with a `wire` (which is a unique ID local to the subscriber).
