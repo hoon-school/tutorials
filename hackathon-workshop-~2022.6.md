@@ -755,7 +755,7 @@ We will introduce marks at this point as well.  Marks serve the same role as fil
 **/app/charlie.hoon**
 
 ```hoon
-/-  charlie
+/-  *charlie
 /+  default-agent, dbug
 |%
 +$  versioned-state
@@ -770,93 +770,71 @@ We will introduce marks at this point as well.  Marks serve the same role as fil
 =|  state-0
 =*  state  -
 ^-  agent:gall
-=<
 |_  =bowl:gall
-+*  this      .
-    default   ~(. (default-agent this %|) bowl)
-    main      ~(. +> bowl)
-++  on-init
++*  this     .
+    default  ~(. (default-agent this %|) bowl)
+++  on-init   on-init:default
+++  on-save   !>(state)
+++  on-load
+  |=  old=vase
   ^-  (quip card _this)
-  ~&  >  '%charlie initialized successfully'
-  =.  state  [%0 *(list @)]
-  `this
-++  on-save   on-save:default
-++  on-load   on-load:default
+  `this(state !<(state-0 old))
 ++  on-poke
   |=  [=mark =vase]
   ^-  (quip card _this)
-  ?+    mark  (on-poke:default mark vase)
-      %charlie-action
-    ~&  >  %charlie-action
-    =^  cards  state
-    (handle-action:main !<(action:charlie vase))
-    [cards this]
+  ?>  ?=(%charlie-action mark)
+  =/  act  !<(action vase)
+  ?-    -.act
+      %push
+    ?:  =(our.bowl target.act)
+      `this(values [value.act values])
+    ?>  =(our.bowl src.bowl)
+    :_  this
+    [%pass /pokes %agent [target.act %charlie] %poke mark vase]~
+  ::
+      %pop
+    ?:  =(our.bowl target.act)
+      `this(values ?~(values ~ t.values))
+    ?>  =(our.bowl src.bowl)
+    :_  this
+    [%pass /pokes %agent [target.act %charlie] %poke mark vase]~
+  ==
+::
+++  on-peek
+  |=  =path
+  ^-  (unit (unit cage))
+  ?+  path  (on-peek:default path)
+    [%x %values ~]  ``noun+!>(values)
   ==
 ++  on-arvo   on-arvo:default
 ++  on-watch  on-watch:default
 ++  on-leave  on-leave:default
-++  on-peek
-  |=  =path
-  ^-  (unit (unit cage))
-  ?+    path  (on-peek:default path)
-      [%x %values ~]
-    ``noun+!>(values)
-  ==
 ++  on-agent  on-agent:default
 ++  on-fail   on-fail:default
---
-|_  =bowl:gall
-++  handle-action
-  |=  =action:charlie
-  ^-  (quip card _state)
-  ?-    -.action
-    ::
-      %push-remote
-    :_  state
-    ~[[%pass /poke-wire %agent [target.action %charlie] %poke %charlie-action !>([%push-local value.action])]]
-    ::
-      %push-local
-    =.  values.state  (weld values.state ~[value.action])
-    ~&  >>  values.state
-    :_  state
-    ~[[%give %fact ~[/values] [%atom !>(values.state)]]]
-    ::
-      %pop-remote
-    :_  state
-    ~[[%pass /poke-wire %agent [target.action %charlie] %poke %charlie-action !>(~[%pop-local])]]
-    ::
-      %pop-local
-    =.  values.state  (snip values.state)
-    ~&  >>  values.state
-    :_  state
-    ~[[%give %fact ~[/values] [%atom !>(values.state)]]]
-  ==
 --
 ```
 
 **`/sur/charlie.hoon`**
 
-```
+```hoon
 |%
 +$  action
-  $%  [%push-remote target=@p value=@]
-      [%push-local value=@]
-      [%pop-remote target=@p]
-      [%pop-local ~]
+  $%  [%push target=@p value=@]
+      [%pop target=@p]
   ==
 --
 ```
 
 **`/mar/charlie/action.hoon`**
 
-```
-/-  charlie
-|_  =action:charlie
-++  grab
-  |%
-  ++  noun  action:charlie
-  --
+```hoon
+/-  *charlie
+|_  act=action
 ++  grow
+  |%
+  ++  noun  act
+  --
+++  grab
   |%
   ++  noun  action
   --
@@ -889,10 +867,10 @@ Once that's launching correctly, two fakeships on the same local machine running
 
 ```hoon
 ::  Pokes pass through the action mark.
-:charlie &charlie-action [%push-remote ~zod 100]
-:charlie &charlie-action [%push-local 100]
-:charlie &charlie-action [%pop-remote ~zod]
-:charlie &charlie-action [%pop-local ~]
+:charlie &charlie-action [%push ~zod 100]
+:charlie &charlie-action [%push ~nec 50]
+:charlie &charlie-action [%pop ~zod]
+:charlie &charlie-action [%pop ~nec]
 
 ::  Peeks need the return value specified.
 .^((list @) %gx /=charlie=/values/noun)
