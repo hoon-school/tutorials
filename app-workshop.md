@@ -1,9 +1,8 @@
 #   Urbit for Hackathons
 
-Competitive programming requires developers to move quickly, be ready to employ common code patterns, and troubleshoot 
-You have to move quickly.
+Competitive programming requires developers to move quickly, be ready to employ common code patterns, and troubleshoot without much time for intensive testing.  You have to move quickly.
 
-For the competitive programmers, the Urbit platform offers you many helpful features for free:
+For the competitive programmer, the Urbit platform offers you many helpful features for free:
 
 - identity & associated state, cryptographically secured
 - peer-to-peer end-to-end-encrypted apps
@@ -14,6 +13,14 @@ For the competitive programmers, the Urbit platform offers you many helpful feat
 If you have programmed with a scripting language like Lua inside of a modded game, for instance, you will be familiar with how the game serves as a platform providing correct primitives which speed your development.  Urbit does this for the operating system layer, serving as a platform for personal data management, social media, user apps, and blockchain apps.
 
 However, Urbit development is couched in terms which are unfamiliar to most programmers unless they are versed in something like APL.  The Urbit programming language, Hoon, composes statements together in a way that behaves like functional programming but reads a bit more like imperative programming.
+
+If you would like to work with Urbit at a hackathon but don't want to invest time into learning Hoon, you can also consider building Urbit-aware tooling and apps.  Some ideas include:
+
+- Urbit chat bots are exemplified by `%crow`.
+- Urbit ID integrations can be built for a variety of other projects, and require looking at the Azimuth Ecliptic contracts written in Solidity.
+- Urbit apps have front-ends which can be largely agnostic to the underlying backend server implementation.  This means that you can build a front-end without knowing much about the agent other than its capabilities and interface.
+- The Urbit Visor Chrome extension produced by dcSpark bridges Web 2.0 applications to web3 on Urbit.  A UV integration would be an excellent hackathon-size project.
+- The Login with Urbit ID provides a Web 2.0 bridge authentication procedure you can use similar to OAuth.
 
 As you put the time into it, I expect that you will find Urbit to be refreshingly different from other platforms, while affording rapid application development and deployment.
 
@@ -501,7 +508,7 @@ This last case can be handled with a couple of expedients:
 
 ##  Back-End App Development
 
-I will use agent and app interchangeably, although more properly an agent is an instantiation of an app on a particular ship.
+I will use “agent” and “app” interchangeably, although more properly an agent is an instantiation of an app on a particular ship.
 
 ### A Gall Agent's Structure
 
@@ -1123,9 +1130,10 @@ We will implement a version of our stack app that runs on one ship and doesn't t
 
 Eyre is the HTTP server vane of Arvo.  It will receive and handle `GET` and `PUT` messages.  The web client will produce a unique channel ID and connect that channel to the agent to monitor subscriptions and acks.
 
+This is handled automatically by the Urbit Javascript library in the example we will use.
+
 ### JSON Manipulation
 
-The Urbit Visor Chrome extension produced by dcSpark bridges Web 2.0 applications to web3 on Urbit.  A UV integration would be an excellent hackathon-size project.
 
 ### Updates to `%delta`
 
@@ -1304,6 +1312,8 @@ The last thing we need to do is publish our app so other users can install it f
 ```
 
 Let's take a quick look at the front-end functionality now.
+
+You can see that the data passed to and from the Urbit ship are converted by the mark file into JSON.  This makes it straightforward for the front-end and back-end to coordinate, each in their own native idiom.
 
 ##  Conclusion
 
