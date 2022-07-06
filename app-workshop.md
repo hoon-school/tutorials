@@ -16,11 +16,11 @@ However, Urbit development is couched in terms which are unfamiliar to most prog
 
 If you would like to work with Urbit at a hackathon but don't want to invest time into learning Hoon, you can also consider building Urbit-aware tooling and apps.  Some ideas include:
 
-- Urbit chat bots are exemplified by `%crow`.
-- Urbit ID integrations can be built for a variety of other projects, and require looking at the Azimuth Ecliptic contracts written in Solidity.
-- Urbit apps have front-ends which can be largely agnostic to the underlying backend server implementation.  This means that you can build a front-end without knowing much about the agent other than its capabilities and interface.
-- The Urbit Visor Chrome extension produced by dcSpark bridges Web 2.0 applications to web3 on Urbit.  A UV integration would be an excellent hackathon-size project.
-- The Login with Urbit ID provides a Web 2.0 bridge authentication procedure you can use similar to OAuth.
+- **Urbit chat bots** are exemplified by `%crow`.
+- **Urbit ID integrations** can be built for a variety of other projects, and require looking at the Azimuth Ecliptic contracts written in Solidity.
+- **Urbit apps front-ends** can be largely agnostic to the underlying backend server implementation.  This means that you can build a front-end without knowing much about the agent other than its capabilities and interface.
+- The **Urbit Visor Chrome extension** produced by dcSpark bridges Web 2.0 applications to web3 on Urbit.  A UV integration would be an excellent hackathon-size project.
+- The [**Login with Urbit ID** app](https://galactictribune.net/post/urbit-login-with-urbit-id) provides a Web 2.0 bridge authentication procedure you can use similar to OAuth.
 
 As you put the time into it, I expect that you will find Urbit to be refreshingly different from other platforms, while affording rapid application development and deployment.
 
@@ -75,13 +75,27 @@ Hoon allows the developer a lot of freedom in deciding how to display and format
 
 #### Types
 
+All values in Hoon are binary trees, including single values (atoms) which are leaves of a binary tree.  (Since Hoon is homoiconic, this implies that Hoon code possesses the same quality.)
+
 ##### Atoms
+
+Atoms are unsigned integers which have associated metadata affecting their display and to some extent their treatment by the compiler.
+
+Since all atoms are written in a URL-safe manner, there are some quirks:  the thousands separator is a `.` dot, like `1.000` for 1,000.
+
 ##### Cells
+
+Cells are pairs of nouns, meaning they either contain cells or atoms.  (Ultimately all binary trees resolve in atoms at the tips of branches.)
 
 #### Lists
 
+Lists are rightwards-branching tuples that end in `~` null `0`.
+
 #### Text
 
+There are several ways to represent text, but most tools are built to work with `tape`s, which are `list`s of single characters.  `tape`s are denoted using `"double quotes"`.
+
+TODO
 
 Now that we have some fundamentals under our belt, let's implement a few common patterns that can come in handy for competitive programming.  Obviously I don't know what you'll need, but we can't go wrong with showing you some patterns for sorting, searching, 
 Many of these you can treat as a black-box algorithm.
@@ -93,6 +107,8 @@ The Hoon standard library at the current time is heavily biased towards code par
 ### Cores
 
 **You cannot grasp the nature of Hoon until you grasp cores.**
+
+A core is a cell `[code data]`.
 
 ### Doors
 
